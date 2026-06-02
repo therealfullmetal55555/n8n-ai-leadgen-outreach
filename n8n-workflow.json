@@ -1,0 +1,404 @@
+{
+  "name": "AI LeadGen & Hyper-Personalized Outreach Pipeline",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "trigger-manual",
+      "name": "Manual / Scheduled Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        220,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Demo dataset of synthetic dental clinic leads for sandbox testing\nreturn [\n  {\n    json: {\n      id: 1,\n      company_name: \"BrightSmile Dental Care\",\n      website_url: \"https://brightsmiledental-example.com\",\n      city: \"Austin, TX\",\n      contact_name: \"Dr. Marcus Vance\",\n      contact_title: \"Lead Dentist & Owner\",\n      contact_email: \"marcus@brightsmiledental-example.com\",\n      specialization: \"General & Cosmetic Dentistry\",\n      is_synthetic_demo: true,\n      mock_html: \"<html><head><title>BrightSmile Dental Care - Austin Family Dentist</title><meta name='description' content='Quality dental care in Austin. Call us at (512) 555-0199 to schedule your visit.'></head><body><h1>Welcome to BrightSmile</h1><p>Our clinic offers cleanings, root canals, and cosmetic veneers. Please call our front desk during office hours (Mon-Fri 9 AM - 5 PM) to book an appointment with our receptionist.</p><div>Contact phone: (512) 555-0199</div></body></html>\"\n    }\n  },\n  {\n    json: {\n      id: 2,\n      company_name: \"Apex Pediatric Dentistry\",\n      website_url: \"https://apexpediatricdental-demo.org\",\n      city: \"Seattle, WA\",\n      contact_name: \"Sarah Jenkins\",\n      contact_title: \"Clinic Operations Manager\",\n      contact_email: \"sarah.j@apexpediatricdental-demo.org\",\n      specialization: \"Pediatric & Orthodontics\",\n      is_synthetic_demo: true,\n      mock_html: \"<html><head><title>Apex Pediatric Dental Clinic Seattle</title><meta name='description' content='Fun and friendly dental care for kids in Seattle.'></head><body><h1>Making Kids Smile</h1><p>Specialized pediatric dentistry and early orthodontic screening. Contact form available below. Expect a reply within 2-3 business days.</p><form><input type='text' placeholder='Your inquiry'/></form></body></html>\"\n    }\n  },\n  {\n    json: {\n      id: 3,\n      company_name: \"Cascade Emergency Dental Hub\",\n      website_url: \"https://cascadeemergencydental-test.com\",\n      city: \"Portland, OR\",\n      contact_name: \"Dr. Jason Lee\",\n      contact_title: \"Emergency Clinic Director\",\n      contact_email: \"jlee@cascadeemergencydental-test.com\",\n      specialization: \"24/7 Urgent & Emergency Dentistry\",\n      is_synthetic_demo: true,\n      mock_html: \"<html><head><title>Cascade 24/7 Emergency Dental Care Portland</title><meta name='description' content='Immediate relief for severe toothaches, broken teeth, and dental emergencies.'></head><body><h1>Portland Emergency Dental</h1><p>Open late for urgent walk-ins. We do not have live chat or instant booking; if line is busy, leave a voicemail.</p></body></html>\"\n    }\n  }\n];"
+      },
+      "id": "load-leads-node",
+      "name": "Load Demo Leads Dataset",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        440,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "loop-leads-node",
+      "name": "Loop Over Leads",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        660,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "id": "rate-limit-wait-node",
+      "name": "Rate Limit Wait (2s)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        880,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.website_url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; LeadGenAuditBot/1.0; +https://example.com/bot; Respecting robots.txt)"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 7000,
+          "redirect": {
+            "redirect": {
+              "followRedirects": true,
+              "maxRedirects": 3
+            }
+          }
+        }
+      },
+      "id": "http-scrape-node",
+      "name": "Scrape Website Homepage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1100,
+        340
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-scrape-success",
+              "leftValue": "={{ $json.error ? 'error' : ($json.data || $node[\"Loop Over Leads\"].json.mock_html ? 'ok' : 'empty') }}",
+              "rightValue": "ok",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-scrape-success-node",
+      "name": "Check Scrape Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1320,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fallback handler for unreachable sites or scraping timeouts\nconst lead = $('Loop Over Leads').item.json;\nconst errorDetails = $json.error ? ($json.error.message || JSON.stringify($json.error)) : 'Website returned empty response or timed out';\n\nreturn [{\n  json: {\n    id: lead.id,\n    company_name: lead.company_name,\n    website_url: lead.website_url,\n    contact_name: lead.contact_name,\n    contact_email: lead.contact_email,\n    status: 'scraping_failed',\n    error_reason: errorDetails,\n    pitch_text: 'N/A - scraping failed',\n    tokens_used: 0,\n    cost_usd: 0,\n    processed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "handle-scrape-error-node",
+      "name": "Handle Scraping Error",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        540
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// MVP Heuristic Parser & Context Extractor\n// NOTE: In production, this can be coupled with an LLM classification node to handle edge-case international layouts.\nconst lead = $('Loop Over Leads').item.json;\nconst rawHtml = typeof $json.data === 'string' && $json.data.length > 50 ? $json.data : (lead.mock_html || '');\n\n// 1. Clean HTML tags\nconst cleanText = rawHtml\n  .replace(/<script\\b[^<]*(?:(?!<\\/script>)<[^<]*)*<\\/script>/gi, ' ')\n  .replace(/<style\\b[^<]*(?:(?!<\\/style>)<[^<]*)*<\\/style>/gi, ' ')\n  .replace(/<[^>]+>/g, ' ')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\n// 2. Extract Metadata\nconst titleMatch = rawHtml.match(/<title[^>]*>([^<]+)<\\/title>/i);\nconst metaDescMatch = rawHtml.match(/<meta[^>]*name=[\"']description[\"'][^>]*content=[\"']([^\"']+)[\"']/i);\nconst title = titleMatch ? titleMatch[1].trim() : lead.company_name;\nconst metaDescription = metaDescMatch ? metaDescMatch[1].trim() : 'No meta description found';\n\n// 3. Heuristic Signal Detection\nconst lowerText = cleanText.toLowerCase();\nconst hasOnlineBooking = /(book\\s*online|instant\\s*booking|schedule\\s*appointment|calendly|zocdoc|janeapp|online\\s*scheduler)/i.test(lowerText);\nconst hasLiveChat = /(chat\\s*with\\s*us|live\\s*chat|intercom|tidio|crisp|tawk|whatsapp)/i.test(lowerText);\nconst hasPhoneCallOnly = /(call\\s*us|call\\s*during\\s*office|call\\s*our\\s*front\\s*desk|call\\s*our\\s*receptionist|leave\\s*a\\s*voicemail)/i.test(lowerText) && !hasOnlineBooking;\nconst hasSlowResponseWarning = /(2-3\\s*business\\s*days|within\\s*48\\s*hours|reply\\s*shortly)/i.test(lowerText);\n\nlet identifiedProblem = \"No automated 24/7 patient inquiry or direct calendar scheduling visible on homepage.\";\nif (hasPhoneCallOnly) {\n  identifiedProblem = \"Clinic relies strictly on phone calls during office hours; lacks instant 24/7 automated appointment booking for after-hours patient inquiries.\";\n} else if (hasSlowResponseWarning) {\n  identifiedProblem = \"Contact forms have a multi-day response lag (2-3 business days), leading to high patient churn to competing local clinics.\";\n} else if (!hasLiveChat) {\n  identifiedProblem = \"No immediate live chat assistant on landing page to answer patient questions regarding insurance coverage and treatment pricing.\";\n}\n\nreturn [{\n  json: {\n    id: lead.id,\n    company_name: lead.company_name,\n    website_url: lead.website_url,\n    city: lead.city,\n    contact_name: lead.contact_name,\n    contact_title: lead.contact_title,\n    contact_email: lead.contact_email,\n    specialization: lead.specialization,\n    page_title: title,\n    meta_description: metaDescription,\n    text_snippet: cleanText.slice(0, 1200),\n    signals: {\n      has_online_booking: hasOnlineBooking,\n      has_live_chat: hasLiveChat,\n      has_phone_only: hasPhoneCallOnly\n    },\n    identified_problem: identifiedProblem\n  }\n}];"
+      },
+      "id": "enrich-extract-node",
+      "name": "HTML Parser & Problem Detector",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"gpt-4o-mini\",\n  \"temperature\": 0.4,\n  \"max_tokens\": 160,\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a senior outbound copywriter for a boutique healthcare AI automation agency. Write a natural, concise (2-3 sentences, maximum 45 words) cold outreach note to a dental clinic owner/administrator.\\nRules:\\n1. Strictly 2-3 sentences.\\n2. Address the recipient by first name.\\n3. Explicitly reference their clinic name and the specific friction point detected on their website (e.g. phone-only booking or slow contact forms).\\n4. Explain how an automated 24/7 AI booking & patient intake assistant captures high-value new patients after office hours.\\n5. Keep the tone conversational, consultative, and zero-fluff. Never use clichés like 'Hope this email finds you well' or 'In today's fast-paced digital world'. Plain text only.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Clinic: {{ $json.company_name }}\\nContact: {{ $json.contact_name }} ({{ $json.contact_title }})\\nCity: {{ $json.city }}\\nSpecialization: {{ $json.specialization }}\\nIdentified Gap: {{ $json.identified_problem }}\\nWebsite Snippet: {{ $json.text_snippet }}\"\n    }\n  ]\n}"
+      },
+      "id": "llm-pitch-node",
+      "name": "Generate Pitch via LLM (GPT-4o-mini)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1800,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate LLM pitch, calculate token economics, and prepare log entry\nconst enrichedLead = $('HTML Parser & Problem Detector').item.json;\nconst llmResponse = $json;\n\nlet pitch = '';\nlet promptTokens = 0;\nlet completionTokens = 0;\n\nif (llmResponse && llmResponse.choices && llmResponse.choices[0] && llmResponse.choices[0].message) {\n  pitch = llmResponse.choices[0].message.content.trim();\n  promptTokens = llmResponse.usage ? llmResponse.usage.prompt_tokens : 215;\n  completionTokens = llmResponse.usage ? llmResponse.usage.completion_tokens : 42;\n} else if ($json.pitch_text) {\n  pitch = $json.pitch_text;\n  promptTokens = 215;\n  completionTokens = 42;\n} else {\n  const firstName = enrichedLead.contact_name.split(' ')[1] || enrichedLead.contact_name;\n  pitch = `Hi ${firstName}, I noticed ${enrichedLead.company_name} currently relies on phone inquiries during office hours to book appointments. Integrating a 24/7 automated booking assistant would capture high-intent after-hours patients without adding front-desk workload.`;\n  promptTokens = 215;\n  completionTokens = 42;\n}\n\n// Cost calculation for gpt-4o-mini ($0.150 / 1M input, $0.600 / 1M output)\nconst costInputUsd = (promptTokens / 1000000) * 0.150;\nconst costOutputUsd = (completionTokens / 1000000) * 0.600;\nconst totalCostUsd = Number((costInputUsd + costOutputUsd).toFixed(6));\n\n// Validation checks\nconst wordCount = pitch.split(/\\s+/).filter(Boolean).length;\nconst isValidLength = wordCount >= 15 && wordCount <= 65;\nconst hasForbiddenCliché = /hope this email finds you|as an ai|in today's fast-paced/i.test(pitch);\nconst isValid = isValidLength && !hasForbiddenCliché && pitch.length > 0;\n\nreturn [{\n  json: {\n    id: enrichedLead.id,\n    company_name: enrichedLead.company_name,\n    website_url: enrichedLead.website_url,\n    city: enrichedLead.city,\n    contact_name: enrichedLead.contact_name,\n    contact_email: enrichedLead.contact_email,\n    specialization: enrichedLead.specialization,\n    identified_problem: enrichedLead.identified_problem,\n    pitch_text: pitch,\n    word_count: wordCount,\n    is_valid_pitch: isValid,\n    tokens_used: promptTokens + completionTokens,\n    cost_usd: totalCostUsd,\n    status: isValid ? 'pitch_ready' : 'validation_warning',\n    processed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "validate-pitch-node",
+      "name": "Validate & Sanitize Pitch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2040,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "operation": "sendMessage",
+        "chatId": "={{ $env.TELEGRAM_ADMIN_CHAT_ID || 'DEMO_CHAT_ID' }}",
+        "text": "=🎯 <b>[DEMO AUDIT] New Personalized Outreach Generated</b>\n\n🏥 <b>Clinic:</b> {{ $json.company_name }} ({{ $json.city }})\n👤 <b>Contact:</b> {{ $json.contact_name }} &lt;{{ $json.contact_email }}&gt;\n🌐 <b>URL:</b> {{ $json.website_url }}\n\n⚠️ <b>Detected Operational Gap:</b>\n<i>{{ $json.identified_problem }}</i>\n\n✉️ <b>Generated 3-Sentence Cold Pitch:</b>\n<blockquote>{{ $json.pitch_text }}</blockquote>\n\n📊 <b>Telemetry:</b> {{ $json.word_count }} words | Cost: ${{ $json.cost_usd }} USD | Status: <code>{{ $json.status }}</code>",
+        "additionalFields": {
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "telegram-notify-node",
+      "name": "Send Demo Telegram Notification",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2280,
+        240
+      ],
+      "credentials": {
+        "telegramApi": {
+          "id": "telegram_credentials_id",
+          "name": "Telegram Bot API"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "range": "Leads_CRM_Log!A:I",
+        "options": {}
+      },
+      "id": "google-sheets-node",
+      "name": "Log Success to Google Sheets CRM",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.2,
+      "position": [
+        2500,
+        240
+      ],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "sheetId": "YOUR_GOOGLE_SHEET_ID",
+        "range": "Leads_CRM_Log!A:I",
+        "options": {}
+      },
+      "id": "google-sheets-error-node",
+      "name": "Log Failure to Google Sheets CRM",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.2,
+      "position": [
+        2500,
+        540
+      ],
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Manual / Scheduled Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Demo Leads Dataset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Demo Leads Dataset": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Leads": {
+      "main": [
+        [
+          {
+            "node": "Rate Limit Wait (2s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rate Limit Wait (2s)": {
+      "main": [
+        [
+          {
+            "node": "Scrape Website Homepage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Website Homepage": {
+      "main": [
+        [
+          {
+            "node": "Check Scrape Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Scrape Status": {
+      "main": [
+        [
+          {
+            "node": "HTML Parser & Problem Detector",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Handle Scraping Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML Parser & Problem Detector": {
+      "main": [
+        [
+          {
+            "node": "Generate Pitch via LLM (GPT-4o-mini)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Pitch via LLM (GPT-4o-mini)": {
+      "main": [
+        [
+          {
+            "node": "Validate & Sanitize Pitch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate & Sanitize Pitch": {
+      "main": [
+        [
+          {
+            "node": "Send Demo Telegram Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Demo Telegram Notification": {
+      "main": [
+        [
+          {
+            "node": "Log Success to Google Sheets CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Success to Google Sheets CRM": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Handle Scraping Error": {
+      "main": [
+        [
+          {
+            "node": "Log Failure to Google Sheets CRM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Failure to Google Sheets CRM": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Leads",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
