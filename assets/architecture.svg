@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 180" width="100%" height="100%">
+  <defs>
+    <style>
+      .bone-bg { fill: #F2F0EB; }
+      .carbon-line { stroke: #1A1917; stroke-width: 1.5px; fill: none; }
+      .label-head { font-family: ui-monospace, 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; fill: #1A1917; letter-spacing: 0.08em; text-transform: uppercase; }
+      .label-sub { font-family: ui-monospace, 'JetBrains Mono', monospace; font-size: 10px; fill: #66635B; letter-spacing: 0.1em; text-transform: uppercase; }
+    </style>
+  </defs>
+
+  <rect width="1000" height="180" class="bone-bg"/>
+
+  <!-- Node 1: Leads Ingestion -->
+  <g transform="translate(30, 40)">
+    <path d="M 0,15 L 0,0 L 15,0" class="carbon-line"/>
+    <path d="M 140,100 L 155,100 L 155,85" class="carbon-line"/>
+    <path d="M 155,15 L 155,0 L 140,0" class="carbon-line"/>
+    <path d="M 0,85 L 0,100 L 15,100" class="carbon-line"/>
+    <text x="77" y="42" class="label-head" text-anchor="middle">LEADS CSV</text>
+    <text x="77" y="60" class="label-sub" text-anchor="middle">PROSPECT LIST</text>
+    <text x="77" y="76" class="label-sub" text-anchor="middle">[ B2B INGESTION ]</text>
+  </g>
+
+  <!-- Arrow 1 -> 2 -->
+  <line x1="185" y1="90" x2="225" y2="90" class="carbon-line"/>
+  <polygon points="225,90 215,85 215,95" fill="#1A1917"/>
+
+  <!-- Node 2: Scraper -->
+  <g transform="translate(225, 40)">
+    <path d="M 0,15 L 0,0 L 15,0" class="carbon-line"/>
+    <path d="M 140,100 L 155,100 L 155,85" class="carbon-line"/>
+    <path d="M 155,15 L 155,0 L 140,0" class="carbon-line"/>
+    <path d="M 0,85 L 0,100 L 15,100" class="carbon-line"/>
+    <text x="77" y="42" class="label-head" text-anchor="middle">HTTP SCRAPER</text>
+    <text x="77" y="60" class="label-sub" text-anchor="middle">RATE LIMITER</text>
+    <text x="77" y="76" class="label-sub" text-anchor="middle">[ 2S DELAY GATE ]</text>
+  </g>
+
+  <!-- Arrow 2 -> 3 -->
+  <line x1="380" y1="90" x2="420" y2="90" class="carbon-line"/>
+  <polygon points="420,90 410,85 410,95" fill="#1A1917"/>
+
+  <!-- Node 3: Regex Parser -->
+  <g transform="translate(420, 40)">
+    <path d="M 0,15 L 0,0 L 15,0" class="carbon-line"/>
+    <path d="M 140,100 L 155,100 L 155,85" class="carbon-line"/>
+    <path d="M 155,15 L 155,0 L 140,0" class="carbon-line"/>
+    <path d="M 0,85 L 0,100 L 15,100" class="carbon-line"/>
+    <text x="77" y="42" class="label-head" text-anchor="middle">REGEX PARSER</text>
+    <text x="77" y="60" class="label-sub" text-anchor="middle">GAP CLASSIFIER</text>
+    <text x="77" y="76" class="label-sub" text-anchor="middle">[ FRICTION HEURISTIC ]</text>
+  </g>
+
+  <!-- Arrow 3 -> 4 -->
+  <line x1="575" y1="90" x2="615" y2="90" class="carbon-line"/>
+  <polygon points="615,90 605,85 605,95" fill="#1A1917"/>
+
+  <!-- Node 4: Pitch Synthesizer -->
+  <g transform="translate(615, 40)">
+    <path d="M 0,15 L 0,0 L 15,0" class="carbon-line"/>
+    <path d="M 150,100 L 165,100 L 165,85" class="carbon-line"/>
+    <path d="M 165,15 L 165,0 L 150,0" class="carbon-line"/>
+    <path d="M 0,85 L 0,100 L 15,100" class="carbon-line"/>
+    <text x="82" y="42" class="label-head" text-anchor="middle">GPT-4O-MINI</text>
+    <text x="82" y="60" class="label-sub" text-anchor="middle">PITCH SYNTHESIS</text>
+    <text x="82" y="76" class="label-sub" text-anchor="middle">[ $0.057 / 1K LEADS ]</text>
+  </g>
+
+  <!-- Arrow 4 -> 5 -->
+  <line x1="780" y1="90" x2="820" y2="90" class="carbon-line"/>
+  <polygon points="820,90 810,85 810,95" fill="#1A1917"/>
+
+  <!-- Node 5: Telegram + Sheets -->
+  <g transform="translate(820, 40)">
+    <path d="M 0,15 L 0,0 L 15,0" class="carbon-line"/>
+    <path d="M 135,100 L 150,100 L 150,85" class="carbon-line"/>
+    <path d="M 150,15 L 150,0 L 135,0" class="carbon-line"/>
+    <path d="M 0,85 L 0,100 L 15,100" class="carbon-line"/>
+    <text x="75" y="42" class="label-head" text-anchor="middle">TELEGRAM &amp; CRM</text>
+    <text x="75" y="60" class="label-sub" text-anchor="middle">INSTANT PREVIEW</text>
+    <text x="75" y="76" class="label-sub" text-anchor="middle">[ GOOGLE SHEETS ]</text>
+  </g>
+</svg>
